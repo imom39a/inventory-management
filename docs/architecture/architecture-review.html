@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Architecture description for anthropic-bootcamp</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .band-label { writing-mode: horizontal-tb; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans antialiased">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-14">
+
+      <!-- Header -->
+      <header class="space-y-4">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Architecture description · 2026-11-12 · revised against main @ 46c8e43</p>
+        <h1 class="font-serif text-4xl text-slate-900">anthropic-bootcamp</h1>
+        <p class="text-sm text-slate-600">Factory Inventory Management demo. Vue 3 client, FastAPI server, in-memory JSON data. No database, no auth.</p>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600 pt-2">
+          <span class="inline-flex items-center gap-2"><span class="inline-block w-5 h-3 border border-slate-700 bg-white"></span>module</span>
+          <span class="inline-flex items-center gap-2"><span class="inline-block w-5 border-t-2 border-dashed border-slate-500"></span>seam</span>
+          <span class="inline-flex items-center gap-2"><span class="inline-block w-5 border-t-2 border-red-600"></span>leakage</span>
+          <span class="inline-flex items-center gap-2"><span class="inline-block w-5 h-3 deep"></span>deep module</span>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-4 text-xs text-slate-600 space-y-1">
+          <p class="font-semibold text-slate-700">Changes since the first draft (09:55)</p>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>Restocking tab (#1): new <span class="font-mono">server/restocking.py</span>, three routes, <span class="font-mono">Restocking.vue</span>, <span class="font-mono">RestockBudgetPanel.vue</span>, Restock Orders on the Orders page.</li>
+            <li><span class="font-mono">GLOSSARY.md</span> and <span class="font-mono">docs/specs/restocking-tab.md</span> added.</li>
+            <li>Vitest unit and Playwright e2e suites (#2), Claude Code GitHub workflows (#3), Prettier hook (#4).</li>
+            <li>CSV export on the Inventory page (#5): new <span class="font-mono">client/src/utils/</span> helpers.</li>
+          </ul>
+        </div>
+      </header>
+
+      <!-- 1. System overview -->
+      <section id="overview" class="space-y-6">
+        <h2 class="font-serif text-2xl">1. System overview</h2>
+        <p class="text-sm text-slate-600">Two processes talk over HTTP on localhost. The server holds all data in memory for the life of the process, including Restock Orders created at runtime.</p>
+
+        <div class="rounded-lg border border-slate-200 bg-white p-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch text-center">
+            <div class="rounded border-2 border-slate-700 bg-white p-4 space-y-2">
+              <p class="text-xs uppercase tracking-wider text-slate-500">Client · port 3000</p>
+              <p class="font-semibold">Vue 3 SPA</p>
+              <p class="text-xs text-slate-600 font-mono">main.js · App.vue · views · components · composables · utils</p>
+            </div>
+            <div class="flex flex-col items-center justify-center gap-1 text-xs text-slate-500">
+              <div class="w-full border-t-2 border-slate-500 relative"><span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-1">HTTP JSON</span></div>
+              <span>axios · GET / POST / PATCH / DELETE</span>
+            </div>
+            <div class="rounded border-2 border-slate-700 bg-white p-4 space-y-2">
+              <p class="text-xs uppercase tracking-wider text-slate-500">Server · port 8001</p>
+              <p class="font-semibold">FastAPI app</p>
+              <p class="text-xs text-slate-600 font-mono">main.py · restocking.py · mock_data.py</p>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-center">
+            <div class="rounded border-2 border-slate-400 bg-stone-100 px-6 py-3 text-center">
+              <p class="text-xs uppercase tracking-wider text-slate-500">Data · server/data/*.json</p>
+              <p class="text-xs font-mono text-slate-600">inventory · orders · demand_forecasts · backlog_items · spending · transactions · purchase_orders</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Mass of modules -->
+      <section id="mass" class="space-y-6">
+        <h2 class="font-serif text-2xl">2. Where the code mass sits</h2>
+        <p class="text-sm text-slate-600">Line counts for the largest source files. Dashboard.vue alone is still the biggest single file by a wide margin.</p>
+        <div class="rounded-lg border border-slate-200 bg-white p-6 space-y-3 font-mono text-xs">
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>views/Dashboard.vue</span><div class="h-4 bg-slate-800" style="width:100%"></div><span class="text-right">1260</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>views/Spending.vue</span><div class="h-4 bg-slate-700" style="width:68%"></div><span class="text-right">852</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>components/TasksModal.vue</span><div class="h-4 bg-slate-600" style="width:49%"></div><span class="text-right">621</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>App.vue</span><div class="h-4 bg-slate-500" style="width:39%"></div><span class="text-right">489</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>views/Reports.vue</span><div class="h-4 bg-slate-500" style="width:39%"></div><span class="text-right">488</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>components/InventoryDetailModal.vue</span><div class="h-4 bg-slate-500" style="width:36%"></div><span class="text-right">450</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>views/Inventory.vue</span><div class="h-4 bg-slate-500" style="width:35%"></div><span class="text-right">444</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>server/main.py</span><div class="h-4 bg-slate-400" style="width:31%"></div><span class="text-right">389</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>views/Restocking.vue</span><div class="h-4 bg-slate-400" style="width:25%"></div><span class="text-right">310</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>server/restocking.py</span><div class="h-4 bg-slate-400" style="width:15%"></div><span class="text-right">192</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>client/src/api.js</span><div class="h-4 bg-slate-300" style="width:11%"></div><span class="text-right">134</span></div>
+          <div class="grid grid-cols-[14rem_1fr_4rem] items-center gap-3"><span>server/mock_data.py</span><div class="h-4 bg-slate-300" style="width:3%"></div><span class="text-right">39</span></div>
+        </div>
+        <p class="text-xs text-slate-500">Total client and server source (views, components, composables, utils, api.js, main.js, server modules): about 9,231 lines, up from about 7,957 in the first draft.</p>
+      </section>
+
+      <!-- 3. Server -->
+      <section id="server" class="space-y-6">
+        <h2 class="font-serif text-2xl">3. Server</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <article class="rounded-lg border-2 border-slate-700 bg-white p-6 space-y-3">
+            <p class="text-xs uppercase tracking-wider text-slate-500">main.py · 389 lines</p>
+            <h3 class="font-semibold">Routes, models, and filters</h3>
+            <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+              <li>Pydantic models for inventory, orders, demand, backlog, purchase orders, and the restocking request and response shapes</li>
+              <li>Filter helpers: <span class="font-mono text-xs">apply_filters</span>, <span class="font-mono text-xs">filter_by_month</span>, <span class="font-mono text-xs">QUARTER_MAP</span></li>
+              <li>Route handlers for every endpoint. Restocking routes are thin and hand off to restocking.py</li>
+              <li>CORS set to allow all origins</li>
+            </ul>
+          </article>
+          <article class="rounded-lg deep text-slate-50 p-6 space-y-3">
+            <p class="text-xs uppercase tracking-wider text-slate-300">restocking.py · 192 lines</p>
+            <h3 class="font-semibold">Restocking domain logic</h3>
+            <ul class="text-sm text-slate-200 list-disc pl-5 space-y-1">
+              <li><span class="font-mono text-xs">build_candidates</span>, <span class="font-mono text-xs">allocate</span>, <span class="font-mono text-xs">create_orders</span>, <span class="font-mono text-xs">list_orders</span></li>
+              <li>Holds <span class="font-mono text-xs">restock_orders</span> in a module-level list, guarded by a <span class="font-mono text-xs">threading.Lock</span> on create</li>
+              <li>Raises <span class="font-mono text-xs">RestockValidationError</span>, which main.py maps to 400</li>
+              <li>Single <span class="font-mono text-xs">now()</span> clock so tests can freeze time</li>
+            </ul>
+          </article>
+          <article class="rounded-lg border-2 border-slate-400 bg-white p-6 space-y-3">
+            <p class="text-xs uppercase tracking-wider text-slate-500">mock_data.py · 39 lines</p>
+            <h3 class="font-semibold">Data loader, runs at import time</h3>
+            <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+              <li>Reads each JSON file once, into module-level lists and dicts</li>
+              <li>Spending is split into summary, monthly, and category pieces</li>
+              <li>Changes to JSON require a server restart</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-white p-6 space-y-3">
+          <p class="text-xs uppercase tracking-wider text-slate-500">Endpoint surface</p>
+          <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-left text-xs text-slate-500 uppercase tracking-wider">
+              <tr><th class="py-2">Route</th><th class="py-2">Filters</th><th class="py-2">Source</th></tr>
+            </thead>
+            <tbody class="font-mono text-xs divide-y divide-slate-100">
+              <tr><td class="py-2">GET /api/inventory[/{id}]</td><td>warehouse, category</td><td>inventory_items</td></tr>
+              <tr><td class="py-2">GET /api/orders[/{id}]</td><td>warehouse, category, status, month</td><td>orders</td></tr>
+              <tr><td class="py-2">GET /api/demand</td><td>none</td><td>demand_forecasts</td></tr>
+              <tr><td class="py-2">GET /api/backlog</td><td>none</td><td>backlog_items + purchase_orders (computed flag)</td></tr>
+              <tr><td class="py-2">GET /api/dashboard/summary</td><td>warehouse, category, status, month</td><td>inventory_items, orders, backlog_items</td></tr>
+              <tr><td class="py-2">GET /api/spending/{summary,monthly,categories,transactions}</td><td>none</td><td>spending, transactions</td></tr>
+              <tr><td class="py-2">GET /api/reports/{quarterly,monthly-trends}</td><td>none</td><td>orders (aggregated per request)</td></tr>
+              <tr><td class="py-2">GET /api/restocking/recommendations</td><td>budget, warehouse, category</td><td>inventory_items + open restock_orders</td></tr>
+              <tr><td class="py-2">POST /api/restock-orders</td><td>body: budget, skus</td><td>validated against full inventory, appends to restock_orders</td></tr>
+              <tr><td class="py-2">GET /api/restock-orders</td><td>warehouse, category</td><td>restock_orders (newest first)</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">The client still calls <span class="font-mono">/api/tasks</span> and <span class="font-mono">/api/purchase-orders</span>. No such routes exist in main.py. See section 6.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+<pre class="mermaid">
+flowchart LR
+  R[HTTP request] --> H[Route handler in main.py]
+  H --> F1[apply_filters]
+  H --> F2[filter_by_month]
+  H --> RS[restocking.py]
+  F1 --> M[(mock_data lists)]
+  F2 --> M
+  RS --> M
+  RS --> RO[(restock_orders, runtime only)]
+  M --> P[Pydantic response_model]
+  RO --> P
+  P --> J[JSON response]
+  classDef deep fill:#1e293b,stroke:#0f172a,color:#f8fafc,stroke-width:2px;
+  class H,RS deep
+</pre>
+        </div>
+      </section>
+
+      <!-- 4. Client -->
+      <section id="client" class="space-y-6">
+        <h2 class="font-serif text-2xl">4. Client</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Shell</p>
+            <p class="font-mono text-xs">main.js → App.vue</p>
+            <p class="text-slate-600">Vue Router in history mode, seven routes. Route <span class="font-mono text-xs">meta.hiddenFilters</span> lets Restocking hide the period and status filters. App.vue holds nav, FilterBar, profile menu, and the tasks modal.</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Views</p>
+            <p class="font-mono text-xs">views/*.vue (7 pages)</p>
+            <p class="text-slate-600">Each page fetches on mount and on filter change, holds raw data in refs, and derives display data in computed properties.</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Shared state</p>
+            <p class="font-mono text-xs">composables/*.js</p>
+            <p class="text-slate-600">useFilters, useAuth, and useI18n are module-level singletons. Locale is persisted to localStorage.</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Pure helpers</p>
+            <p class="font-mono text-xs">utils/*.js</p>
+            <p class="text-slate-600"><span class="font-mono text-xs">csv</span> (escape and download), <span class="font-mono text-xs">inventoryExport</span> (rows and filename), <span class="font-mono text-xs">currency</span>. No Vue imports, unit-tested directly.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <article class="rounded-lg border-2 border-slate-700 bg-white p-6 space-y-3">
+            <p class="text-xs uppercase tracking-wider text-slate-500">api.js · 134 lines</p>
+            <h3 class="font-semibold">Central HTTP client</h3>
+            <p class="text-sm text-slate-600">Hard-codes the base URL and builds query strings from filter objects, dropping <span class="font-mono text-xs">'all'</span>. Now also wraps the restocking recommendations and Restock Order routes. Every page but Reports reads data through it.</p>
+          </article>
+          <article class="rounded-lg border-2 border-slate-400 bg-white p-6 space-y-3">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Views and modals</p>
+            <h3 class="font-semibold">Pages with detail modals</h3>
+            <p class="text-sm text-slate-600">Views open detail modals for product, backlog, inventory, and cost. Restocking.vue uses RestockBudgetPanel. Orders.vue lists submitted Restock Orders. Reports.vue still skips api.js and calls Axios directly with its own URL.</p>
+          </article>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+<pre class="mermaid">
+flowchart LR
+  main[main.js router] --> App[App.vue shell]
+  main --> Views[views/*.vue]
+  Views --> fu[useFilters]
+  Views --> i18n[useI18n]
+  Views --> api[api.js]
+  Views --> utils[utils/*.js]
+  App --> api
+  App --> tm[TasksModal]
+  Restock[Restocking.vue] --> rbp[RestockBudgetPanel]
+  Restock --> api
+  Reports[Reports.vue] -.->|direct axios| srv[FastAPI]
+  api --> srv
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class Reports leak
+</pre>
+        </div>
+      </section>
+
+      <!-- 5. Request flow -->
+      <section id="flow" class="space-y-6">
+        <h2 class="font-serif text-2xl">5. Request flows</h2>
+        <p class="text-sm text-slate-600">One filter change on a read-only page, and one Restock Order submission.</p>
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+<pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant V as View
+  participant F as useFilters
+  participant A as api.js
+  participant S as FastAPI
+  participant D as mock_data
+  U->>F: change Warehouse filter
+  F-->>V: ref changed, watcher fires
+  V->>A: getOrders(filters)
+  A->>S: GET /api/orders?warehouse=...
+  S->>D: read in-memory list
+  D-->>S: items
+  S-->>A: JSON validated by response_model
+  A-->>V: data
+  V->>V: computed properties re-derive
+</pre>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+<pre class="mermaid">
+sequenceDiagram
+  participant U as Planner
+  participant V as Restocking.vue
+  participant A as api.js
+  participant S as main.py
+  participant R as restocking.py
+  U->>V: set budget
+  V->>A: getRestockRecommendations(filters, budget)
+  A->>S: GET /api/restocking/recommendations
+  S->>R: build_candidates, allocate
+  R-->>V: candidates flagged recommended
+  U->>V: adjust selection, submit
+  V->>A: createRestockOrder(budget, skus)
+  A->>S: POST /api/restock-orders
+  S->>R: create_orders (under lock, full inventory)
+  alt invalid budget or SKUs
+    R-->>S: RestockValidationError
+    S-->>V: 400
+  else valid
+    R-->>S: one order per warehouse
+    S-->>V: 201
+  end
+</pre>
+        </div>
+      </section>
+
+      <!-- 6. Testing and automation -->
+      <section id="testing" class="space-y-6">
+        <h2 class="font-serif text-2xl">6. Testing and automation</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Backend · pytest</p>
+            <p class="font-mono text-xs">tests/backend/</p>
+            <p class="text-slate-600">FastAPI TestClient tests for inventory, dashboard, restocking, and other endpoints.</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Client unit · Vitest</p>
+            <p class="font-mono text-xs">client/tests/unit/</p>
+            <p class="text-slate-600">FilterBar, Inventory, Orders, Restocking components, plus csv and inventoryExport helpers.</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500">End to end · Playwright</p>
+            <p class="font-mono text-xs">client/tests/e2e/</p>
+            <p class="text-slate-600">One spec per area: overview, inventory, orders, restocking, finance, demand, reports, navigation, i18n.</p>
+          </div>
+        </div>
+        <p class="text-sm text-slate-600">GitHub Actions run two Claude Code workflows: an automatic review on pull requests, and an <span class="font-mono text-xs">@claude</span> responder on comments. Neither runs the test suites.</p>
+      </section>
+
+      <!-- 7. Observations -->
+      <section id="observations" class="space-y-6">
+        <h2 class="font-serif text-2xl">7. Observations from reading the code</h2>
+        <p class="text-sm text-slate-600">These describe the current state. They are not refactor proposals.</p>
+        <ul class="space-y-4 text-sm">
+          <li class="rounded-lg border border-red-200 bg-white p-4"><span class="font-semibold text-red-700">Client calls with no server route.</span> <span class="font-mono text-xs">api.js</span> calls <span class="font-mono text-xs">GET/POST /api/tasks</span>, <span class="font-mono text-xs">PATCH/DELETE /api/tasks/{id}</span>, and <span class="font-mono text-xs">/api/purchase-orders</span>. App.vue calls the tasks endpoints. Expected 404. Unchanged since the first draft.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Dead purchase-order client methods.</span> <span class="font-mono text-xs">createPurchaseOrder</span> and <span class="font-mono text-xs">getPurchaseOrderByBacklogItem</span> have no callers in the client. Restock Orders now cover the replenishment flow, and GLOSSARY.md lists "purchase order" as a term to avoid.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Restock Orders are not persisted.</span> They live in a module-level list in restocking.py and are lost on server restart. Fine for a demo, but it is the only state the app writes.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Quarter logic in two places.</span> <span class="font-mono text-xs">QUARTER_MAP</span> drives filtering. <span class="font-mono text-xs">/api/reports/quarterly</span> hard-codes its own 2025 quarter branches.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Date filtering by substring.</span> <span class="font-mono text-xs">order_date</span> is matched with <span class="font-mono text-xs">in</span>. Works for the bundled data format.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Hard-coded API base in two places.</span> <span class="font-mono text-xs">api.js</span> and <span class="font-mono text-xs">Reports.vue</span> both name <span class="font-mono text-xs">http://localhost:8001/api</span>.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">CI does not run tests.</span> The suites in section 6 run locally only. The GitHub workflows run Claude review, not pytest, Vitest, or Playwright.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Glossary and specs exist, ADRs do not.</span> <span class="font-mono text-xs">GLOSSARY.md</span> defines Order, Restock Order, Reorder Point, Restock Candidate, and Recommendation. <span class="font-mono text-xs">docs/specs/</span> holds the restocking spec. There is still no <span class="font-mono text-xs">docs/adr/</span>.</li>
+          <li class="rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold">Open CORS and no auth.</span> <span class="font-mono text-xs">allow_origins=["*"]</span> with no authentication. Stated as demo-only in server/CLAUDE.md.</li>
+        </ul>
+      </section>
+
+      <footer class="text-xs text-slate-500 border-t border-slate-200 pt-6">
+        First drafted at 09:55 from a read of server/main.py, server/mock_data.py, client/src/api.js, client/src/main.js, client/src/App.vue, the view and component file list, and the repo layout. Revised against main at 46c8e43 after re-reading server/restocking.py, the restocking routes, api.js, main.js, Reports.vue, GLOSSARY.md, the test directories, and .github/workflows. No code was changed.
+      </footer>
+    </main>
+  </body>
+</html>
