@@ -19,43 +19,16 @@
         {{ submitError }}
       </div>
 
-      <div class="card">
-        <div class="budget-panel">
-          <div class="budget-control">
-            <label for="budget-slider" class="budget-label">{{ t('restocking.budget') }}</label>
-            <input
-              id="budget-slider"
-              type="range"
-              min="0"
-              :max="sliderMax"
-              step="500"
-              :value="budget"
-              data-testid="budget-slider"
-              @input="onBudgetInput"
-            />
-            <strong class="budget-value" data-testid="budget-value">{{ formatBudget(budget) }}</strong>
-          </div>
-          <div class="budget-stats">
-            <div class="budget-stat">
-              <span class="stat-caption">{{ t('restocking.selectedTotal') }}</span>
-              <strong data-testid="selected-total">{{ formatExact(selectedTotal) }}</strong>
-            </div>
-            <div class="budget-stat">
-              <span class="stat-caption">{{ t('restocking.remainingBudget') }}</span>
-              <strong data-testid="remaining-budget">{{ formatExact(remainingBudget) }}</strong>
-            </div>
-            <button
-              type="button"
-              class="place-order"
-              data-testid="place-order-button"
-              :disabled="selectedSkus.length === 0 || submitting"
-              @click="placeOrder"
-            >
-              {{ submitting ? t('restocking.placingOrder') : t('restocking.placeOrder') }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <RestockBudgetPanel
+        :budget="budget"
+        :slider-max="sliderMax"
+        :selected-total="selectedTotal"
+        :remaining-budget="remainingBudget"
+        :selected-count="selectedSkus.length"
+        :submitting="submitting"
+        @update:budget="onBudgetChange"
+        @place-order="placeOrder"
+      />
 
       <div v-if="candidates.length === 0" class="card empty" data-testid="restock-empty">
         {{ t('restocking.empty') }}
@@ -101,8 +74,8 @@
                 <td class="num">{{ c.quantity_on_hand }}</td>
                 <td class="num">{{ c.reorder_point }}</td>
                 <td class="num">{{ c.quantity }}</td>
-                <td class="num">{{ formatExact(c.unit_cost) }}</td>
-                <td class="num"><strong>{{ formatExact(c.line_total) }}</strong></td>
+                <td class="num">{{ formatMoney(c.unit_cost) }}</td>
+                <td class="num"><strong>{{ formatMoney(c.line_total) }}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -117,7 +90,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
-import { formatCurrency, formatCurrencyWithDecimals } from '../utils/currency'
+import { formatExact } from '../utils/currency'
+import RestockBudgetPanel from '../components/RestockBudgetPanel.vue'
 
 const BUDGET_STEP = 500
 
@@ -127,26 +101,16 @@ const toCents = (amount) => Math.round(amount * 100)
 
 export default {
   name: 'Restocking',
+  components: { RestockBudgetPanel },
   setup() {
-    const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
-
-    const translateCategory = (category) => {
-      const categoryMap = {
-        'Circuit Boards': t('categories.circuitBoards'),
-        'Sensors': t('categories.sensors'),
-        'Actuators': t('categories.actuators'),
-        'Controllers': t('categories.controllers'),
-        'Power Supplies': t('categories.powerSupplies')
-      }
-      return categoryMap[category] || category
-    }
+    const { t, currentCurrency, translateProductName, translateWarehouse, translateCategory } = useI18n()
     const { selectedLocation, selectedCategory } = useFilters()
 
     const loading = ref(true)
     const loadError = ref(null)
     const candidates = ref([])
     const maxBudget = ref(0)
-    // null until the first load so we know to apply the 50% default instead of clamping.
+    // null until the first load so we know to adopt the server's default instead of clamping.
     const budget = ref(null)
     const selectedSkus = ref([])
     const submitting = ref(false)
@@ -172,12 +136,7 @@ export default {
     const selectedTotal = computed(() => selectedTotalCents.value / 100)
     const remainingBudget = computed(() => remainingCents.value / 100)
 
-    const formatExact = (amount) => formatCurrencyWithDecimals(amount, currentCurrency.value, 2)
-    // Whole budgets read cleaner on the slider; show cents only once deductions make it fractional.
-    const formatBudget = (amount) =>
-      Number.isInteger(amount)
-        ? formatCurrency(amount, currentCurrency.value)
-        : formatExact(amount)
+    const formatMoney = (amount) => formatExact(amount, currentCurrency.value)
 
     // Mirrors the server's greedy rule so dragging the slider doesn't need a request per tick.
     // Candidates arrive most urgent first; a line that doesn't fit is skipped (not split) and
@@ -208,8 +167,8 @@ export default {
       }
     }
 
-    const onBudgetInput = (event) => {
-      budget.value = Number(event.target.value)
+    const onBudgetChange = (value) => {
+      budget.value = value
       selectRecommended()
     }
 
@@ -227,10 +186,10 @@ export default {
         if (myRequest !== requestId) return
         candidates.value = data.candidates
         maxBudget.value = data.max_budget
+        // First load adopts the server's default budget; later loads keep the user's budget if it
+        // still fits the new maximum.
         budget.value =
-          budget.value === null
-            ? Math.floor((data.max_budget * 0.5) / BUDGET_STEP) * BUDGET_STEP
-            : Math.min(budget.value, sliderMax.value)
+          budget.value === null ? data.budget : Math.min(budget.value, sliderMax.value)
         selectRecommended()
         loadError.value = null
       } catch (err) {
@@ -288,12 +247,11 @@ export default {
       submitting,
       submitError,
       successOrders,
-      formatExact,
-      formatBudget,
+      formatMoney,
       translateCategory,
       isDisabled,
       toggle,
-      onBudgetInput,
+      onBudgetChange,
       placeOrder,
       translateProductName,
       translateWarehouse
@@ -303,69 +261,6 @@ export default {
 </script>
 
 <style scoped>
-.budget-panel {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.budget-control {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1 1 320px;
-}
-
-.budget-control input[type='range'] {
-  flex: 1;
-  min-width: 160px;
-}
-
-.budget-label,
-.stat-caption {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.budget-value {
-  min-width: 90px;
-  color: #0f172a;
-  font-size: 1.125rem;
-}
-
-.budget-stats {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.budget-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  color: #0f172a;
-}
-
-.place-order {
-  background: #0f172a;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.625rem 1.25rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.place-order:disabled {
-  background: #cbd5e1;
-  cursor: not-allowed;
-}
-
 .banner {
   display: flex;
   justify-content: space-between;

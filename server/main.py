@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
@@ -6,6 +8,7 @@ import restocking
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
+logger = logging.getLogger(__name__)
 
 # Quarter mapping for date filtering
 QUARTER_MAP = {
@@ -370,6 +373,7 @@ def create_restock_orders(request: CreateRestockOrderRequest):
     try:
         return restocking.create_orders(inventory_items, request.budget, request.skus)
     except restocking.RestockValidationError as e:
+        logger.warning("Rejected Restock Order (budget=%s, skus=%s): %s", request.budget, request.skus, e)
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/restock-orders", response_model=List[RestockOrder])

@@ -2,7 +2,7 @@
   <div class="filters-bar">
     <div class="filters-container">
       <div class="filters-grid">
-        <div v-if="showTimeAndStatus" class="filter-group">
+        <div v-if="isVisible('period')" class="filter-group">
           <label>{{ t('filters.timePeriod') }}</label>
           <select v-model="selectedPeriod" class="filter-select">
             <option value="all">{{ t('filters.allMonths') }}</option>
@@ -43,7 +43,7 @@
           </select>
         </div>
 
-        <div v-if="showTimeAndStatus" class="filter-group">
+        <div v-if="isVisible('status')" class="filter-group">
           <label>{{ t('filters.orderStatus') }}</label>
           <select v-model="selectedStatus" class="filter-select">
             <option value="all">{{ t('filters.all') }}</option>
@@ -82,45 +82,41 @@ export default {
       selectedPeriod,
       selectedLocation,
       selectedCategory,
-      selectedStatus,
-      hasActiveFilters,
-      resetFilters
+      selectedStatus
     } = useFilters()
 
     const { t } = useI18n()
     const route = useRoute()
 
-    // Restocking only follows warehouse and category, so period and status would be dead controls.
-    const showTimeAndStatus = computed(() => route.path !== '/restocking')
+    // Routes list filters that don't affect them in meta.hiddenFilters. Hidden filters keep their
+    // values for other tabs, so reset and the enabled state only consider what is visible here.
+    const isVisible = (key) => !(route.meta.hiddenFilters || []).includes(key)
 
-    // Hidden filters keep their values for other tabs, so reset and the enabled state must only
-    // consider what is visible here.
-    const canReset = computed(() =>
-      showTimeAndStatus.value
-        ? hasActiveFilters.value
-        : selectedLocation.value !== 'all' || selectedCategory.value !== 'all'
-    )
+    const filterRefs = {
+      period: selectedPeriod,
+      location: selectedLocation,
+      category: selectedCategory,
+      status: selectedStatus
+    }
+    const visibleRefs = () => Object.keys(filterRefs).filter(isVisible).map((k) => filterRefs[k])
+
+    const canReset = computed(() => visibleRefs().some((r) => r.value !== 'all'))
 
     const reset = () => {
-      if (showTimeAndStatus.value) {
-        resetFilters()
-      } else {
-        selectedLocation.value = 'all'
-        selectedCategory.value = 'all'
-      }
+      visibleRefs().forEach((r) => {
+        r.value = 'all'
+      })
     }
 
     return {
-      showTimeAndStatus,
+      isVisible,
       canReset,
       reset,
       t,
       selectedPeriod,
       selectedLocation,
       selectedCategory,
-      selectedStatus,
-      hasActiveFilters,
-      resetFilters
+      selectedStatus
     }
   }
 }

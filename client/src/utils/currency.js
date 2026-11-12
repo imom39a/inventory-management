@@ -26,3 +26,9 @@ export function convertAmount(amount, currency = 'USD') {
   }
   return amount
 }
+
+// Always two decimals; restock line totals and unit costs carry cents that whole-dollar
+// formatting would hide.
+export function formatExact(amount, currency = 'USD') {
+  return formatCurrencyWithDecimals(amount, currency, 2)
+}

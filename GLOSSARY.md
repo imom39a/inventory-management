@@ -17,12 +17,16 @@ A request placed with a supplier to replenish inventory items at exactly one war
 _Avoid_: Purchase order, submitted order, order (unqualified)
 
 **Reorder Point**:
-The on-hand quantity at or below which an inventory item needs restocking.
+The reference on-hand quantity for an inventory item; restocking is judged and sized relative to it.
 _Avoid_: Minimum stock, threshold
 
 **Restock Candidate**:
 An inventory item whose on-hand quantity is below 1.5x its Reorder Point and that has no open Restock Order.
-_Avoid_: Low-stock item, recommendation
+_Avoid_: Low-stock item
+
+**Recommendation**:
+The subset of Restock Candidates that the budget selects, taking the most urgent first, before the planner adjusts it.
+_Avoid_: Suggestion, proposal
 
 **Lead Time**:
 The number of days between placing a Restock Order and its arrival at the warehouse.

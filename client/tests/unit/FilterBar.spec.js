@@ -9,7 +9,12 @@ const stub = { template: '<div />' }
 const mountAt = async (path) => {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: ['/', '/orders', '/restocking'].map((p) => ({ path: p, component: stub }))
+    routes: [
+      { path: '/', component: stub },
+      { path: '/orders', component: stub },
+      { path: '/restocking', component: stub, meta: { hiddenFilters: ['period', 'status'] } },
+      { path: '/only-status', component: stub, meta: { hiddenFilters: ['status'] } }
+    ]
   })
   router.push(path)
   await router.isReady()
@@ -70,6 +75,13 @@ describe('FilterBar', () => {
     expect(selectedStatus.value).toBe('delivered')
     // Only hidden filters remain active, so there is nothing visible left to reset.
     expect(button.element.disabled).toBe(true)
+  })
+
+  it('hides only the filters listed in route meta', async () => {
+    const { wrapper } = await mountAt('/only-status')
+    current = wrapper
+    expect(labels(wrapper)).toContain('Time Period')
+    expect(labels(wrapper)).not.toContain('Order Status')
   })
 
   it('still resets every filter on other routes', async () => {

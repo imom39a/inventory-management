@@ -15,7 +15,8 @@ const router = createRouter({
     { path: '/', component: Dashboard },
     { path: '/inventory', component: Inventory },
     { path: '/orders', component: Orders },
-    { path: '/restocking', component: Restocking },
+    // Restocking only follows warehouse and category; hide the filters it ignores.
+    { path: '/restocking', component: Restocking, meta: { hiddenFilters: ['period', 'status'] } },
     { path: '/demand', component: Demand },
     { path: '/spending', component: Spending },
     { path: '/reports', component: Reports }

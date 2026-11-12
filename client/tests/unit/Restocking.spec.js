@@ -81,10 +81,12 @@ describe('Restocking view', () => {
     expect(tid(wrapper, 'budget-value').text()).toContain('$5,000')
   })
 
-  it('snaps the default budget down to a $500 step', async () => {
-    api.getRestockRecommendations.mockResolvedValue({ ...fixture(), max_budget: 9700 })
+  it('uses the budget returned by the server as the initial budget', async () => {
+    // A value the client's own 50% rule would not produce proves the server's is used.
+    api.getRestockRecommendations.mockResolvedValue({ ...fixture(), max_budget: 9700, budget: 3000 })
     const wrapper = await mountView()
-    expect(tid(wrapper, 'budget-slider').element.value).toBe('4500')
+    expect(tid(wrapper, 'budget-slider').element.value).toBe('3000')
+    expect(tid(wrapper, 'budget-value').text()).toContain('$3,000')
   })
 
   it('ticks recommended lines using the greedy whole-line rule', async () => {

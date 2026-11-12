@@ -63,7 +63,7 @@ def extra_inventory_item():
         mock_data.inventory_items.remove(item)
 
 
-def get_recs(client, **params):
+def get_recommendations(client, **params):
     response = client.get("/api/restocking/recommendations", params=params)
     assert response.status_code == 200, response.text
     return response.json()
@@ -73,11 +73,11 @@ def place(client, budget, skus):
     return client.post("/api/restock-orders", json={"budget": budget, "skus": skus})
 
 
-class TestRestockingRecommendations:
+class TestRestockRecommendationsEndpoints:
     """Recommendations: candidate rule, quantities, urgency order, budget allocation, filters."""
 
     def test_recommendations_structure(self, client):
-        data = get_recs(client, budget=1000)
+        data = get_recommendations(client, budget=1000)
         for key in ("max_budget", "budget", "recommended_total", "candidates"):
             assert key in data
         for c in data["candidates"]:
@@ -89,13 +89,13 @@ class TestRestockingRecommendations:
             assert isinstance(c["recommended"], bool)
 
     def test_candidates_are_items_below_1_5x_reorder_point(self, client):
-        data = get_recs(client, budget=0)
+        data = get_recommendations(client, budget=0)
         assert [c["sku"] for c in data["candidates"]] == [e[0] for e in EXPECTED_CANDIDATES]
         for c in data["candidates"]:
             assert c["quantity_on_hand"] < 1.5 * c["reorder_point"]
 
     def test_quantity_refills_to_1_5x_reorder_point(self, client):
-        data = get_recs(client, budget=0)
+        data = get_recommendations(client, budget=0)
         by_sku = {c["sku"]: c for c in data["candidates"]}
         for sku, warehouse, qty, line_total in EXPECTED_CANDIDATES:
             assert by_sku[sku]["warehouse"] == warehouse
@@ -105,72 +105,72 @@ class TestRestockingRecommendations:
     def test_quantity_rounds_up_fractional_units(self, client, extra_inventory_item):
         # 1.5 * 33 = 49.5 -> need 49.5 - 40 = 9.5 units, which must round up to 10.
         extra_inventory_item(quantity_on_hand=40, reorder_point=33)
-        by_sku = {c["sku"]: c for c in get_recs(client, budget=0)["candidates"]}
+        by_sku = {c["sku"]: c for c in get_recommendations(client, budget=0)["candidates"]}
         assert by_sku["TST-999"]["quantity"] == 10
 
     def test_item_exactly_at_1_5x_reorder_point_is_not_a_candidate(self, client, extra_inventory_item):
         extra_inventory_item(quantity_on_hand=150, reorder_point=100)
-        skus = [c["sku"] for c in get_recs(client, budget=0)["candidates"]]
+        skus = [c["sku"] for c in get_recommendations(client, budget=0)["candidates"]]
         assert "TST-999" not in skus
 
     def test_candidates_sorted_by_urgency(self, client):
-        urgencies = [c["urgency"] for c in get_recs(client, budget=0)["candidates"]]
+        urgencies = [c["urgency"] for c in get_recommendations(client, budget=0)["candidates"]]
         assert urgencies == sorted(urgencies)
 
     def test_urgency_ties_broken_by_sku(self, client):
         # HMD-202 and PSU-507 both have urgency 95/80.
-        skus = [c["sku"] for c in get_recs(client, budget=0)["candidates"]]
+        skus = [c["sku"] for c in get_recommendations(client, budget=0)["candidates"]]
         assert skus.index("HMD-202") < skus.index("PSU-507")
 
     def test_max_budget_is_cost_of_all_candidates(self, client):
-        assert abs(get_recs(client, budget=0)["max_budget"] - MAX_BUDGET) < 0.01
+        assert abs(get_recommendations(client, budget=0)["max_budget"] - MAX_BUDGET) < 0.01
 
     def test_zero_budget_recommends_nothing(self, client):
-        data = get_recs(client, budget=0)
+        data = get_recommendations(client, budget=0)
         assert not any(c["recommended"] for c in data["candidates"])
         assert data["recommended_total"] == 0
 
     def test_budget_at_max_recommends_everything(self, client):
-        data = get_recs(client, budget=MAX_BUDGET)
+        data = get_recommendations(client, budget=MAX_BUDGET)
         assert all(c["recommended"] for c in data["candidates"])
         assert abs(data["recommended_total"] - MAX_BUDGET) < 0.01
 
     def test_greedy_allocation_skips_lines_that_do_not_fit(self, client):
         # 30,000: PSU-508 + TMP-201 fit, both SRV lines are too big and get skipped,
         # then the smaller HMD-202 and PSU-507 still fit (887.50 left, too little for the rest).
-        data = get_recs(client, budget=30000)
+        data = get_recommendations(client, budget=30000)
         recommended = [c["sku"] for c in data["candidates"] if c["recommended"]]
         assert recommended == ["PSU-508", "TMP-201", "HMD-202", "PSU-507"]
         assert abs(data["recommended_total"] - 29112.5) < 0.01
 
     def test_recommended_total_never_exceeds_budget(self, client):
         for budget in (0, 500, 1500, 10000, 25000, 40000, 58000):
-            data = get_recs(client, budget=budget)
+            data = get_recommendations(client, budget=budget)
             assert data["recommended_total"] <= budget + 0.001
 
     def test_default_budget_is_half_of_max_rounded_down_to_500(self, client):
-        data = get_recs(client)
+        data = get_recommendations(client)
         assert data["budget"] == 29000
 
-    def test_filter_by_warehouse(self, client):
-        data = get_recs(client, budget=0, warehouse="Tokyo")
+    def test_get_recommendations_by_warehouse(self, client):
+        data = get_recommendations(client, budget=0, warehouse="Tokyo")
         assert [c["sku"] for c in data["candidates"]] == ["PSU-508", "SRV-301", "SRV-302", "STP-304"]
         assert abs(data["max_budget"] - (13912.5 + 13350 + 12325 + 1425)) < 0.01
 
-    def test_filter_by_category_case_insensitive(self, client):
-        data = get_recs(client, budget=0, category="power supplies")
+    def test_get_recommendations_by_category_case_insensitive(self, client):
+        data = get_recommendations(client, budget=0, category="power supplies")
         assert [c["sku"] for c in data["candidates"]] == ["PSU-508", "PSU-507", "PSU-505"]
 
-    def test_filter_combined(self, client):
-        data = get_recs(client, budget=0, warehouse="London", category="Sensors")
+    def test_get_recommendations_multiple_filters(self, client):
+        data = get_recommendations(client, budget=0, warehouse="London", category="Sensors")
         assert [c["sku"] for c in data["candidates"]] == ["TMP-201", "HMD-202"]
 
-    def test_filter_all_is_ignored(self, client):
-        data = get_recs(client, budget=0, warehouse="all", category="all")
+    def test_get_recommendations_filter_all_is_ignored(self, client):
+        data = get_recommendations(client, budget=0, warehouse="all", category="all")
         assert len(data["candidates"]) == len(EXPECTED_CANDIDATES)
 
     def test_no_candidates_for_filter_returns_empty(self, client):
-        data = get_recs(client, budget=1000, category="Circuit Boards")
+        data = get_recommendations(client, budget=1000, category="Circuit Boards")
         assert data["candidates"] == []
         assert data["max_budget"] == 0
         assert data["recommended_total"] == 0
@@ -184,21 +184,21 @@ class TestRestockingRecommendations:
         assert response.status_code == 422
 
     def test_budget_exactly_equal_to_line_fits(self, client):
-        data = get_recs(client, budget=13912.5)
+        data = get_recommendations(client, budget=13912.5)
         assert data["candidates"][0]["sku"] == "PSU-508"
         assert data["candidates"][0]["recommended"] is True
 
     def test_default_budget_respects_filters(self, client):
         # Tokyo max = 41,012.50 -> half = 20,506.25 -> snapped down to 20,500.
-        assert get_recs(client, warehouse="Tokyo")["budget"] == 20500
+        assert get_recommendations(client, warehouse="Tokyo")["budget"] == 20500
 
     def test_zero_reorder_point_item_is_not_a_candidate(self, client, extra_inventory_item):
         extra_inventory_item(quantity_on_hand=0, reorder_point=0)
-        skus = [c["sku"] for c in get_recs(client, budget=0)["candidates"]]
+        skus = [c["sku"] for c in get_recommendations(client, budget=0)["candidates"]]
         assert "TST-999" not in skus
 
 
-class TestRestockOrderCreation:
+class TestCreateRestockOrderEndpoints:
     """Placing Restock Orders: server-side validation, warehouse split, lead times."""
 
     def test_place_order_splits_by_warehouse(self, client, frozen_clock):
@@ -278,6 +278,14 @@ class TestRestockOrderCreation:
         response = place(client, -5, ["PSU-508"])
         assert response.status_code == 422
 
+    def test_unknown_warehouse_rejected(self, client, extra_inventory_item):
+        # A warehouse with no configured Lead Time can't get an expected arrival date.
+        extra_inventory_item(warehouse="Berlin", quantity_on_hand=10, reorder_point=100)
+        response = place(client, MAX_BUDGET, ["TST-999"])
+        assert response.status_code == 400
+        assert "Berlin" in response.json()["detail"]
+        assert restocking.restock_orders == []
+
     def test_budget_exactly_equal_to_total_accepted(self, client):
         response = place(client, 8950.0 + 3125.0, ["TMP-201", "HMD-202"])
         assert response.status_code == 201
@@ -315,7 +323,7 @@ class TestRestockOrderCreation:
 
     def test_ordered_items_are_no_longer_candidates(self, client):
         place(client, MAX_BUDGET, ["PSU-508", "TMP-201"])
-        skus = [c["sku"] for c in get_recs(client, budget=0)["candidates"]]
+        skus = [c["sku"] for c in get_recommendations(client, budget=0)["candidates"]]
         assert "PSU-508" not in skus
         assert "TMP-201" not in skus
         assert len(skus) == len(EXPECTED_CANDIDATES) - 2
@@ -331,38 +339,38 @@ class TestRestockOrderCreation:
         assert client.get("/api/inventory").json() == before
 
 
-class TestRestockOrderListing:
+class TestListRestockOrdersEndpoints:
     """Listing Restock Orders for the Orders tab."""
 
-    def test_list_empty_initially(self, client):
+    def test_get_all_restock_orders_empty_initially(self, client):
         response = client.get("/api/restock-orders")
         assert response.status_code == 200
         assert response.json() == []
 
-    def test_list_newest_first(self, client, frozen_clock):
+    def test_get_all_restock_orders_newest_first(self, client, frozen_clock):
         place(client, MAX_BUDGET, ["PSU-507"])
         place(client, MAX_BUDGET, ["TMP-201"])
         numbers = [o["order_number"] for o in client.get("/api/restock-orders").json()]
         assert numbers == ["RST-2026-0002", "RST-2026-0001"]
 
-    def test_list_filter_by_warehouse(self, client):
+    def test_get_restock_orders_by_warehouse(self, client):
         place(client, MAX_BUDGET, ["PSU-507", "TMP-201", "STP-304"])
         data = client.get("/api/restock-orders", params={"warehouse": "London"}).json()
         assert [o["warehouse"] for o in data] == ["London"]
 
-    def test_list_filter_by_category_matches_any_line(self, client):
+    def test_get_restock_orders_by_category_matches_any_line(self, client):
         # The London order holds a Sensors line and a Power Supplies line.
         place(client, MAX_BUDGET, ["TMP-201", "PSU-505", "STP-304"])
         data = client.get("/api/restock-orders", params={"category": "power supplies"}).json()
         assert [o["warehouse"] for o in data] == ["London"]
 
-    def test_list_filter_all_is_ignored(self, client):
+    def test_get_restock_orders_filter_all_is_ignored(self, client):
         place(client, MAX_BUDGET, ["PSU-507", "TMP-201"])
         data = client.get("/api/restock-orders", params={"warehouse": "all", "category": "all"}).json()
         assert len(data) == 2
 
 
-class TestRestockingRegression:
+class TestRestockingRegressionEndpoints:
     """Placing Restock Orders must not change customer Order, inventory or dashboard data."""
 
     ENDPOINTS = [

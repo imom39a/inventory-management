@@ -20,6 +20,9 @@ LEAD_TIME_DAYS: Dict[str, int] = {
     "Tokyo": 14,
 }
 
+# Restock Orders never advance past this status: receiving stock is out of scope.
+STATUS_SUBMITTED = "Submitted"
+
 # Slider granularity; the default budget is half the maximum, snapped down to this step.
 BUDGET_STEP = 500
 
@@ -133,6 +136,11 @@ def _create_orders_locked(inventory: List[dict], budget: float, skus: List[str])
     if total > budget + 1e-9:
         raise RestockValidationError(f"Total {total:.2f} exceeds budget {budget:.2f}")
 
+    # Check every warehouse up front so a bad line can't leave some orders created and others not.
+    unknown = sorted({line["warehouse"] for line in lines} - LEAD_TIME_DAYS.keys())
+    if unknown:
+        raise RestockValidationError(f"No Lead Time configured for: {', '.join(unknown)}")
+
     # A Restock Order belongs to exactly one warehouse, since each warehouse has its own
     # Lead Time; group lines by warehouse, keeping the first-seen warehouse order.
     grouped: Dict[str, List[dict]] = {}
@@ -148,7 +156,7 @@ def _create_orders_locked(inventory: List[dict], budget: float, skus: List[str])
             "id": f"restock-{sequence}",
             "order_number": f"RST-{placed_at.year}-{sequence:04d}",
             "warehouse": warehouse,
-            "status": "Submitted",
+            "status": STATUS_SUBMITTED,
             "placed_at": placed_at.isoformat(),
             "lead_time_days": lead_days,
             "expected_arrival": (placed_at + timedelta(days=lead_days)).isoformat(),

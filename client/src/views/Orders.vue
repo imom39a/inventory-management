@@ -19,7 +19,7 @@
           <thead>
             <tr>
               <th class="col-order-number">{{ t('orders.restockOrders.table.orderNumber') }}</th>
-              <th class="col-customer">{{ t('orders.restockOrders.table.warehouse') }}</th>
+              <th class="col-warehouse">{{ t('orders.restockOrders.table.warehouse') }}</th>
               <th class="col-date">{{ t('orders.restockOrders.table.placed') }}</th>
               <th class="col-items">{{ t('orders.restockOrders.table.items') }}</th>
               <th class="col-value">{{ t('orders.restockOrders.table.totalCost') }}</th>
@@ -35,7 +35,7 @@
               :data-testid="`restock-order-row-${ro.order_number}`"
             >
               <td class="col-order-number"><strong>{{ ro.order_number }}</strong></td>
-              <td class="col-customer">{{ translateWarehouse(ro.warehouse) }}</td>
+              <td class="col-warehouse">{{ translateWarehouse(ro.warehouse) }}</td>
               <td class="col-date">{{ formatDate(ro.placed_at) }}</td>
               <td class="col-items">
                 <details class="items-details">
@@ -140,12 +140,12 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
-import { formatCurrencyWithDecimals } from '../utils/currency'
+import { formatExact as formatCurrencyExact } from '../utils/currency'
 
 export default {
   name: 'Orders',
   setup() {
-    const { t, currentCurrency, translateProductName, translateCustomerName, translateWarehouse } = useI18n()
+    const { t, currentCurrency, translateProductName, translateCustomerName, translateWarehouse, translateCategory } = useI18n()
 
     const currencySymbol = computed(() => {
       return currentCurrency.value === 'JPY' ? '¥' : '$'
@@ -219,18 +219,7 @@ export default {
     const itemsLabel = (count) =>
       t(count === 1 ? 'orders.itemsCountOne' : 'orders.itemsCountOther', { count })
 
-    const formatExact = (amount) => formatCurrencyWithDecimals(amount, currentCurrency.value, 2)
-
-    const translateCategory = (category) => {
-      const categoryMap = {
-        'Circuit Boards': t('categories.circuitBoards'),
-        'Sensors': t('categories.sensors'),
-        'Actuators': t('categories.actuators'),
-        'Controllers': t('categories.controllers'),
-        'Power Supplies': t('categories.powerSupplies')
-      }
-      return categoryMap[category] || category
-    }
+    const formatExact = (amount) => formatCurrencyExact(amount, currentCurrency.value)
 
     const getOrdersByStatus = (status) => {
       return orders.value.filter(order => order.status === status)
@@ -299,6 +288,10 @@ export default {
 }
 
 .col-customer {
+  width: 180px;
+}
+
+.col-warehouse {
   width: 180px;
 }
 
@@ -411,7 +404,7 @@ export default {
 }
 
 .restock-table .col-order-number,
-.restock-table .col-customer,
+.restock-table .col-warehouse,
 .restock-table .col-items,
 .restock-table .col-status,
 .restock-table .col-date,
