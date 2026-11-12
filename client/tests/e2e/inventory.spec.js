@@ -49,4 +49,28 @@ test.describe('Inventory', () => {
     expect(ranks).not.toContain(undefined)
     expect(ranks).toEqual([...ranks].sort((a, b) => a - b))
   })
+
+  test('Export CSV downloads the filtered rows in table order', async ({ page, request }) => {
+    const london = await apiGet(request, '/inventory?warehouse=London')
+
+    await page.goto('/inventory')
+    await warehouseFilter(page).selectOption('London')
+    await expect(stockRows(page)).toHaveCount(london.length)
+    const shownSkus = (await stockRows(page).locator('td:first-child').allTextContents()).map((s) => s.trim())
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Export CSV' }).click()
+    ])
+    expect(download.suggestedFilename()).toMatch(/^inventory-\d{4}-\d{2}-\d{2}\.csv$/)
+
+    const fs = await import('node:fs/promises')
+    const text = (await fs.readFile(await download.path(), 'utf8')).replace(/^﻿/, '')
+    const [header, ...rows] = text.split('\r\n')
+    expect(header).toBe(
+      'SKU,Item Name,Category,Quantity on Hand,Reorder Point,Unit Cost (USD),Total Value (USD),Location,Status'
+    )
+    expect(rows.map((row) => row.split(',')[0])).toEqual(shownSkus)
+    expect([...shownSkus].sort()).toEqual(london.map((item) => item.sku).sort())
+  })
 })
