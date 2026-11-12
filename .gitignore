@@ -53,3 +53,10 @@ logs/
 
 # Environment variables
 .env
+
+# Local planning notes (specs, tickets)
+.scratch/
+
+# Playwright outputs
+client/test-results/
+client/playwright-report/

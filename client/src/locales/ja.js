@@ -4,6 +4,7 @@ export default {
     overview: '概要',
     inventory: '在庫',
     orders: '注文',
+    restocking: '補充発注',
     finance: '財務',
     demandForecast: '需要予測',
     companyName: '触媒コンポーネンツ',
@@ -106,10 +107,29 @@ export default {
     title: '注文',
     description: '顧客注文の表示と管理',
     allOrders: 'すべての注文',
+    restockOrders: {
+      loadError: '補充発注の読み込みに失敗しました: {message}',
+      title: '発注済みの補充発注',
+      empty: '発注済みの補充発注はありません',
+      leadTimeDays: '{count}日',
+      status: { submitted: '発注済み' },
+      table: {
+        orderNumber: '発注番号',
+        warehouse: '倉庫',
+        placed: '発注日',
+        items: '品目',
+        totalCost: '合計コスト',
+        leadTime: 'リードタイム',
+        expectedArrival: '入荷予定日',
+        status: 'ステータス'
+      }
+    },
     totalOrders: '総注文数',
     totalRevenue: '総収益',
     avgOrderValue: '平均注文額',
     onTimeDelivery: '定時配達',
+    itemsCountOne: '{count}件',
+    itemsCountOther: '{count}件',
     itemsCount: '{count}件',
     quantity: '数量',
     table: {
@@ -126,6 +146,35 @@ export default {
       status: 'ステータス',
       expectedDelivery: '予定配達日',
       actualDelivery: '実際の配達日'
+    }
+  },
+
+  // Restocking
+  restocking: {
+    title: '補充発注',
+    description: '発注点に近づいた品目の補充発注を予算内で計画します',
+    budget: '予算',
+    selectedTotal: '選択合計',
+    remainingBudget: '残予算',
+    placeOrder: '発注する',
+    placingOrder: '発注中...',
+    empty: '選択した条件に該当する補充候補はありません',
+    loadError: '補充推奨の読み込みに失敗しました',
+    orderError: '補充発注の作成に失敗しました',
+    success: '補充発注を作成しました: {orders}',
+    viewOrders: '注文で確認',
+    selectLine: '{sku}を選択',
+    table: {
+      select: '選択',
+      sku: 'SKU',
+      name: '名称',
+      warehouse: '倉庫',
+      category: 'カテゴリ',
+      onHand: '在庫数',
+      reorderPoint: '発注点',
+      orderQty: '発注数量',
+      unitCost: '単価',
+      lineTotal: '行合計'
     }
   },
 

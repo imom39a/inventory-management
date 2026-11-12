@@ -2,7 +2,7 @@
   <div class="filters-bar">
     <div class="filters-container">
       <div class="filters-grid">
-        <div class="filter-group">
+        <div v-if="showTimeAndStatus" class="filter-group">
           <label>{{ t('filters.timePeriod') }}</label>
           <select v-model="selectedPeriod" class="filter-select">
             <option value="all">{{ t('filters.allMonths') }}</option>
@@ -43,7 +43,7 @@
           </select>
         </div>
 
-        <div class="filter-group">
+        <div v-if="showTimeAndStatus" class="filter-group">
           <label>{{ t('filters.orderStatus') }}</label>
           <select v-model="selectedStatus" class="filter-select">
             <option value="all">{{ t('filters.all') }}</option>
@@ -57,8 +57,8 @@
 
       <button
         class="reset-filters-btn"
-        @click="resetFilters"
-        :disabled="!hasActiveFilters"
+        @click="reset"
+        :disabled="!canReset"
         title="Reset all filters"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -70,6 +70,8 @@
 </template>
 
 <script>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 
@@ -86,8 +88,32 @@ export default {
     } = useFilters()
 
     const { t } = useI18n()
+    const route = useRoute()
+
+    // Restocking only follows warehouse and category, so period and status would be dead controls.
+    const showTimeAndStatus = computed(() => route.path !== '/restocking')
+
+    // Hidden filters keep their values for other tabs, so reset and the enabled state must only
+    // consider what is visible here.
+    const canReset = computed(() =>
+      showTimeAndStatus.value
+        ? hasActiveFilters.value
+        : selectedLocation.value !== 'all' || selectedCategory.value !== 'all'
+    )
+
+    const reset = () => {
+      if (showTimeAndStatus.value) {
+        resetFilters()
+      } else {
+        selectedLocation.value = 'all'
+        selectedCategory.value = 'all'
+      }
+    }
 
     return {
+      showTimeAndStatus,
+      canReset,
+      reset,
       t,
       selectedPeriod,
       selectedLocation,
