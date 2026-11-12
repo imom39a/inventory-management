@@ -8,6 +8,7 @@ import Demand from './views/Demand.vue'
 import Spending from './views/Spending.vue'
 import Restocking from './views/Restocking.vue'
 import Reports from './views/Reports.vue'
+import Backlog from './views/Backlog.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -19,7 +20,8 @@ const router = createRouter({
     { path: '/restocking', component: Restocking, meta: { hiddenFilters: ['period', 'status'] } },
     { path: '/demand', component: Demand },
     { path: '/spending', component: Spending },
-    { path: '/reports', component: Reports }
+    { path: '/reports', component: Reports },
+    { path: '/backlog', component: Backlog }
   ]
 })
 

@@ -1,4 +1,4 @@
-import { test, expect, apiGet, cardRows } from './fixtures.js'
+import { test, expect, apiGet, cardRows, warehouseFilter } from './fixtures.js'
 
 test.describe('Finance', () => {
   test('shows stat cards, charts, categories and every recent transaction', async ({ page, request }) => {
@@ -40,5 +40,37 @@ test.describe('Reports', () => {
     for (const q of quarters) {
       await expect(cardRows(page, 'Quarterly Performance').filter({ hasText: q.quarter })).toHaveCount(1)
     }
+  })
+
+  test('filtering by warehouse reloads rows to match the filtered API', async ({ page, request }) => {
+    const quarters = await apiGet(request, '/reports/quarterly?warehouse=London')
+    const months = await apiGet(request, '/reports/monthly-trends?warehouse=London')
+
+    await page.goto('/reports')
+    await expect(cardRows(page, 'Quarterly Performance').first()).toBeVisible()
+    await warehouseFilter(page).selectOption('London')
+
+    if (quarters.length > 0) {
+      await expect(cardRows(page, 'Quarterly Performance')).toHaveCount(quarters.length)
+      await expect(cardRows(page, 'Month-over-Month Analysis')).toHaveCount(months.length)
+    } else {
+      await expect(page.getByTestId('reports-empty')).toBeVisible()
+    }
+  })
+
+  test('switching to Japanese translates the heading and nav link', async ({ page }) => {
+    await page.goto('/reports')
+    const nav = page.locator('nav.nav-tabs')
+    await expect(page.getByRole('heading', { name: 'Performance Reports' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Reports', exact: true })).toBeVisible()
+
+    await page.locator('.language-button').click()
+    await page.getByText('日本語', { exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'パフォーマンスレポート' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'レポート' })).toBeVisible()
+
+    // Restore the saved locale so later tests start in English.
+    await page.locator('.language-button').click()
+    await page.getByText('English', { exact: true }).click()
   })
 })

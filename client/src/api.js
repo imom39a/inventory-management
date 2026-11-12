@@ -11,6 +11,16 @@ const warehouseCategoryParams = (filters = {}) => {
   return params
 }
 
+// Same four filters as /orders; 'all' is omitted so the server sees no param.
+const orderFilterParams = (filters = {}) => {
+  const params = new URLSearchParams()
+  if (filters.warehouse && filters.warehouse !== 'all') params.append('warehouse', filters.warehouse)
+  if (filters.category && filters.category !== 'all') params.append('category', filters.category)
+  if (filters.status && filters.status !== 'all') params.append('status', filters.status)
+  if (filters.month && filters.month !== 'all') params.append('month', filters.month)
+  return params
+}
+
 export const api = {
   async getInventory(filters = {}) {
     const params = warehouseCategoryParams(filters)
@@ -99,6 +109,20 @@ export const api = {
     const params = warehouseCategoryParams(filters)
 
     const response = await axios.get(`${API_BASE_URL}/restock-orders?${params.toString()}`)
+    return response.data
+  },
+
+  async getQuarterlyReports(filters = {}) {
+    const params = orderFilterParams(filters)
+
+    const response = await axios.get(`${API_BASE_URL}/reports/quarterly?${params.toString()}`)
+    return response.data
+  },
+
+  async getMonthlyTrends(filters = {}) {
+    const params = orderFilterParams(filters)
+
+    const response = await axios.get(`${API_BASE_URL}/reports/monthly-trends?${params.toString()}`)
     return response.data
   },
 
