@@ -12,6 +12,15 @@ server_path = Path(__file__).parent.parent.parent / "server"
 sys.path.insert(0, str(server_path))
 
 from main import app
+import restocking
+
+
+@pytest.fixture(autouse=True)
+def reset_restock_orders():
+    """Restock Orders live in module-level memory, so clear them to keep tests independent."""
+    restocking.restock_orders.clear()
+    yield
+    restocking.restock_orders.clear()
 
 
 @pytest.fixture

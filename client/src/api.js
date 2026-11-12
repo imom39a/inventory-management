@@ -2,11 +2,18 @@ import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:8001/api'
 
+// Warehouse/category are the only filters shared by inventory and restocking endpoints;
+// 'all' means unfiltered and is omitted so the server sees no param.
+const warehouseCategoryParams = (filters = {}) => {
+  const params = new URLSearchParams()
+  if (filters.warehouse && filters.warehouse !== 'all') params.append('warehouse', filters.warehouse)
+  if (filters.category && filters.category !== 'all') params.append('category', filters.category)
+  return params
+}
+
 export const api = {
   async getInventory(filters = {}) {
-    const params = new URLSearchParams()
-    if (filters.warehouse && filters.warehouse !== 'all') params.append('warehouse', filters.warehouse)
-    if (filters.category && filters.category !== 'all') params.append('category', filters.category)
+    const params = warehouseCategoryParams(filters)
 
     const response = await axios.get(`${API_BASE_URL}/inventory?${params.toString()}`)
     return response.data
@@ -71,6 +78,27 @@ export const api = {
 
   async getTransactions() {
     const response = await axios.get(`${API_BASE_URL}/spending/transactions`)
+    return response.data
+  },
+
+  async getRestockRecommendations(filters = {}, budget) {
+    const params = warehouseCategoryParams(filters)
+    // Omitting budget lets the server pick its default (half of max, snapped to $500).
+    if (budget !== undefined && budget !== null) params.append('budget', budget)
+
+    const response = await axios.get(`${API_BASE_URL}/restocking/recommendations?${params.toString()}`)
+    return response.data
+  },
+
+  async createRestockOrder(budget, skus) {
+    const response = await axios.post(`${API_BASE_URL}/restock-orders`, { budget, skus })
+    return response.data
+  },
+
+  async getRestockOrders(filters = {}) {
+    const params = warehouseCategoryParams(filters)
+
+    const response = await axios.get(`${API_BASE_URL}/restock-orders?${params.toString()}`)
     return response.data
   },
 

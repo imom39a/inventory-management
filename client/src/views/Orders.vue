@@ -5,6 +5,63 @@
       <p>{{ t('orders.description') }}</p>
     </div>
 
+    <div class="card" data-testid="restock-orders-section">
+      <div class="card-header">
+        <h3 class="card-title">{{ t('orders.restockOrders.title') }} ({{ restockOrders.length }})</h3>
+      </div>
+      <div v-if="restockError" class="error">{{ restockError }}</div>
+      <div v-else-if="restockLoading && restockOrders.length === 0" class="loading">{{ t('common.loading') }}</div>
+      <div v-else-if="restockOrders.length === 0" class="restock-empty" data-testid="restock-orders-empty">
+        {{ t('orders.restockOrders.empty') }}
+      </div>
+      <div v-else class="table-container">
+        <table class="restock-table">
+          <thead>
+            <tr>
+              <th class="col-order-number">{{ t('orders.restockOrders.table.orderNumber') }}</th>
+              <th class="col-warehouse">{{ t('orders.restockOrders.table.warehouse') }}</th>
+              <th class="col-date">{{ t('orders.restockOrders.table.placed') }}</th>
+              <th class="col-items">{{ t('orders.restockOrders.table.items') }}</th>
+              <th class="col-value">{{ t('orders.restockOrders.table.totalCost') }}</th>
+              <th class="col-date">{{ t('orders.restockOrders.table.leadTime') }}</th>
+              <th class="col-date">{{ t('orders.restockOrders.table.expectedArrival') }}</th>
+              <th class="col-status">{{ t('orders.restockOrders.table.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="ro in restockOrders"
+              :key="ro.order_number"
+              :data-testid="`restock-order-row-${ro.order_number}`"
+            >
+              <td class="col-order-number"><strong>{{ ro.order_number }}</strong></td>
+              <td class="col-warehouse">{{ translateWarehouse(ro.warehouse) }}</td>
+              <td class="col-date">{{ formatDate(ro.placed_at) }}</td>
+              <td class="col-items">
+                <details class="items-details">
+                  <summary class="items-summary">
+                    {{ itemsLabel(ro.items.length) }}
+                  </summary>
+                  <div class="items-dropdown">
+                    <div v-for="item in ro.items" :key="item.sku" class="item-entry">
+                      <span class="item-name">{{ translateProductName(item.name) }}</span>
+                      <span class="item-meta">{{ translateCategory(item.category) }} - {{ t('orders.quantity') }}: {{ item.quantity }} @ {{ formatExact(item.unit_cost) }}</span>
+                    </div>
+                  </div>
+                </details>
+              </td>
+              <td class="col-value"><strong>{{ formatExact(ro.total_cost) }}</strong></td>
+              <td class="col-date">{{ t('orders.restockOrders.leadTimeDays', { count: ro.lead_time_days }) }}</td>
+              <td class="col-date">{{ formatDate(ro.expected_arrival) }}</td>
+              <td class="col-status">
+                <span class="badge info">{{ t('orders.restockOrders.status.submitted') }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
@@ -51,7 +108,7 @@
                 <td class="col-items">
                   <details class="items-details">
                     <summary class="items-summary">
-                      {{ t('orders.itemsCount', { count: order.items.length }) }}
+                      {{ itemsLabel(order.items.length) }}
                     </summary>
                     <div class="items-dropdown">
                       <div v-for="(item, idx) in order.items" :key="idx" class="item-entry">
@@ -83,11 +140,12 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
+import { formatExact as formatCurrencyExact } from '../utils/currency'
 
 export default {
   name: 'Orders',
   setup() {
-    const { t, currentCurrency, translateProductName, translateCustomerName } = useI18n()
+    const { t, currentCurrency, translateProductName, translateCustomerName, translateWarehouse, translateCategory } = useI18n()
 
     const currencySymbol = computed(() => {
       return currentCurrency.value === 'JPY' ? '¥' : '$'
@@ -95,6 +153,11 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const orders = ref([])
+    const restockOrders = ref([])
+    const restockError = ref(null)
+    const restockLoading = ref(true)
+    // Ignores a slow earlier response that would overwrite a newer filter's result.
+    let restockRequestId = 0
 
     // Use shared filters
     const {
@@ -124,10 +187,39 @@ export default {
       }
     }
 
+    // Restock Orders are a supplier-side concept with no order date/status of the customer kind,
+    // so only warehouse and category are sent; period and status must not hide them.
+    const loadRestockOrders = async () => {
+      const myRequest = ++restockRequestId
+      restockLoading.value = true
+      try {
+        const result = await api.getRestockOrders({
+          warehouse: selectedLocation.value,
+          category: selectedCategory.value
+        })
+        if (myRequest !== restockRequestId) return
+        restockOrders.value = result
+        restockError.value = null
+      } catch (err) {
+        if (myRequest !== restockRequestId) return
+        restockError.value = t('orders.restockOrders.loadError', { message: err.message })
+      } finally {
+        if (myRequest === restockRequestId) restockLoading.value = false
+      }
+    }
+
     // Watch for filter changes and reload data
     watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
       loadOrders()
     })
+
+    watch([selectedLocation, selectedCategory], loadRestockOrders)
+
+    // The i18n helper has no plural support, so pick the key by count (ja uses the same string).
+    const itemsLabel = (count) =>
+      t(count === 1 ? 'orders.itemsCountOne' : 'orders.itemsCountOther', { count })
+
+    const formatExact = (amount) => formatCurrencyExact(amount, currentCurrency.value)
 
     const getOrdersByStatus = (status) => {
       return orders.value.filter(order => order.status === status)
@@ -145,6 +237,8 @@ export default {
 
     const formatDate = (dateString) => {
       const { currentLocale } = useI18n()
+      if (!dateString || isNaN(new Date(dateString).getTime())) return '-'
+
       const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
       return new Date(dateString).toLocaleDateString(locale, {
         year: 'numeric',
@@ -153,7 +247,10 @@ export default {
       })
     }
 
-    onMounted(loadOrders)
+    onMounted(() => {
+      loadOrders()
+      loadRestockOrders()
+    })
 
     return {
       t,
@@ -163,6 +260,13 @@ export default {
       getOrdersByStatus,
       getOrderStatusClass,
       formatDate,
+      formatExact,
+      itemsLabel,
+      restockLoading,
+      restockOrders,
+      restockError,
+      translateWarehouse,
+      translateCategory,
       currencySymbol,
       translateProductName,
       translateCustomerName
@@ -184,6 +288,10 @@ export default {
 }
 
 .col-customer {
+  width: 180px;
+}
+
+.col-warehouse {
   width: 180px;
 }
 
@@ -275,5 +383,32 @@ export default {
 .item-meta {
   font-size: 0.813rem;
   color: #64748b;
+}
+.restock-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: #64748b;
+}
+
+/* Restock table: auto layout with no-wrap cells so the order number and status badge stay on
+   one line; .table-container scrolls horizontally if the viewport is still too narrow. */
+.restock-table {
+  width: 100%;
+  min-width: 960px;
+}
+
+.restock-table th,
+.restock-table td {
+  white-space: nowrap;
+  padding: 0.5rem 0.625rem;
+}
+
+.restock-table .col-order-number,
+.restock-table .col-warehouse,
+.restock-table .col-items,
+.restock-table .col-status,
+.restock-table .col-date,
+.restock-table .col-value {
+  width: auto;
 }
 </style>

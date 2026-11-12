@@ -4,6 +4,7 @@ export default {
     overview: 'Overview',
     inventory: 'Inventory',
     orders: 'Orders',
+    restocking: 'Restocking',
     finance: 'Finance',
     demandForecast: 'Demand Forecast',
     companyName: 'Catalyst Components',
@@ -106,10 +107,29 @@ export default {
     title: 'Orders',
     description: 'View and manage customer orders',
     allOrders: 'All Orders',
+    restockOrders: {
+      loadError: 'Failed to load restock orders: {message}',
+      title: 'Submitted Restock Orders',
+      empty: 'No restock orders have been submitted',
+      leadTimeDays: '{count} days',
+      status: { submitted: 'Submitted' },
+      table: {
+        orderNumber: 'Order #',
+        warehouse: 'Warehouse',
+        placed: 'Placed',
+        items: 'Items',
+        totalCost: 'Total Cost',
+        leadTime: 'Lead Time',
+        expectedArrival: 'Expected Arrival',
+        status: 'Status'
+      }
+    },
     totalOrders: 'Total Orders',
     totalRevenue: 'Total Revenue',
     avgOrderValue: 'Avg Order Value',
     onTimeDelivery: 'On-Time Delivery',
+    itemsCountOne: '{count} item',
+    itemsCountOther: '{count} items',
     itemsCount: '{count} items',
     quantity: 'Qty',
     table: {
@@ -126,6 +146,35 @@ export default {
       status: 'Status',
       expectedDelivery: 'Expected Delivery',
       actualDelivery: 'Actual Delivery'
+    }
+  },
+
+  // Restocking
+  restocking: {
+    title: 'Restocking',
+    description: 'Plan Restock Orders for items nearing their Reorder Point within a budget',
+    budget: 'Budget',
+    selectedTotal: 'Selected Total',
+    remainingBudget: 'Remaining Budget',
+    placeOrder: 'Place Order',
+    placingOrder: 'Placing Order...',
+    empty: 'No Restock Candidates for the selected filters',
+    loadError: 'Failed to load restocking recommendations',
+    orderError: 'Failed to place the Restock Order',
+    success: 'Restock Orders created: {orders}',
+    viewOrders: 'View in Orders',
+    selectLine: 'Select {sku}',
+    table: {
+      select: 'Select',
+      sku: 'SKU',
+      name: 'Name',
+      warehouse: 'Warehouse',
+      category: 'Category',
+      onHand: 'On Hand',
+      reorderPoint: 'Reorder Point',
+      orderQty: 'Order Qty',
+      unitCost: 'Unit Cost',
+      lineTotal: 'Line Total'
     }
   },
 

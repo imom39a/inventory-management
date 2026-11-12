@@ -114,6 +114,18 @@ export function useI18n() {
     return warehouseName
   }
 
+  // Translate product category names
+  const translateCategory = (category) => {
+    const categoryMap = {
+      'Circuit Boards': t('categories.circuitBoards'),
+      'Sensors': t('categories.sensors'),
+      'Actuators': t('categories.actuators'),
+      'Controllers': t('categories.controllers'),
+      'Power Supplies': t('categories.powerSupplies')
+    }
+    return categoryMap[category] || category
+  }
+
   return {
     t,
     setLocale,
@@ -123,6 +135,7 @@ export function useI18n() {
     localeName,
     translateProductName,
     translateCustomerName,
-    translateWarehouse
+    translateWarehouse,
+    translateCategory
   }
 }
