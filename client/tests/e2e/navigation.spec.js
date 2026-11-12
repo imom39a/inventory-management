@@ -7,6 +7,7 @@ const TABS = [
   { link: 'Restocking', path: '/restocking', heading: 'Restocking' },
   { link: 'Finance', path: '/spending', heading: 'Finance Dashboard' },
   { link: 'Demand Forecast', path: '/demand', heading: 'Demand Forecast' },
+  { link: 'Backlog', path: '/backlog', heading: 'Backlog Management' },
   { link: 'Reports', path: '/reports', heading: 'Performance Reports' }
 ]
 
