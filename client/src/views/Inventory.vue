@@ -13,33 +13,51 @@
           <h3 class="card-title">
             {{ t('inventory.stockLevels') }} ({{ filteredItems.length }} {{ t('inventory.skus') }})
           </h3>
-          <div class="search-box">
-            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fill-rule="evenodd"
-                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('inventory.searchPlaceholder')"
-              class="search-input"
-            />
-            <button
-              v-if="searchQuery"
-              @click="searchQuery = ''"
-              class="clear-search"
-              :title="t('inventory.clearSearch')"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <div class="header-actions">
+            <div class="search-box">
+              <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
                   clip-rule="evenodd"
                 />
               </svg>
+              <input
+                v-model="searchQuery"
+                type="text"
+                :placeholder="t('inventory.searchPlaceholder')"
+                class="search-input"
+              />
+              <button
+                v-if="searchQuery"
+                @click="searchQuery = ''"
+                class="clear-search"
+                :title="t('inventory.clearSearch')"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+            <button
+              type="button"
+              class="export-button"
+              data-testid="export-csv"
+              :disabled="filteredItems.length === 0"
+              @click="exportCsv"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path
+                  fill-rule="evenodd"
+                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              {{ t('inventory.exportCsv') }}
             </button>
           </div>
         </div>
@@ -104,6 +122,8 @@ import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 import InventoryDetailModal from '../components/InventoryDetailModal.vue'
+import { downloadCsv } from '../utils/csv'
+import { buildInventoryCsv, inventoryCsvFilename } from '../utils/inventoryExport'
 
 export default {
   name: 'Inventory',
@@ -203,6 +223,22 @@ export default {
       showItemModal.value = true
     }
 
+    // Export filteredItems (not items) so the file matches the table: search-filtered, Low Stock first.
+    // statusLabel reuses getStockStatus so the Status column carries the same translated text as the badges.
+    const exportCsv = () => {
+      if (filteredItems.value.length === 0) return
+      downloadCsv(
+        inventoryCsvFilename(),
+        buildInventoryCsv(filteredItems.value, {
+          t,
+          translateProductName,
+          translateCategory,
+          translateWarehouse,
+          statusLabel: getStockStatus
+        })
+      )
+    }
+
     onMounted(loadInventory)
 
     return {
@@ -220,7 +256,8 @@ export default {
       showItemDetail,
       currencySymbol,
       translateProductName,
-      translateWarehouse
+      translateWarehouse,
+      exportCsv
     }
   }
 }
@@ -244,7 +281,8 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
 }
@@ -254,6 +292,52 @@ export default {
   font-weight: 600;
   color: #0f172a;
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-button svg {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+}
+
+.export-button:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.export-button:disabled {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.export-button:disabled svg {
+  color: #cbd5e1;
 }
 
 .search-box {
@@ -317,6 +401,25 @@ export default {
 .clear-search svg {
   width: 18px;
   height: 18px;
+}
+
+/* Phones: the 300px search min-width plus the button cannot fit beside the title, so the
+   actions row drops below it and takes the full width; the search box shrinks to share the row. */
+@media (max-width: 640px) {
+  .card-header {
+    /* The global .card already pads horizontally; extra side padding here leaves the search box too narrow. */
+    padding: 1rem 0;
+  }
+
+  .header-actions {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+  }
+
+  .search-box {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 
 .loading,
