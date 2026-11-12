@@ -1,10 +1,4 @@
-import { test, expect } from '@playwright/test'
-
-// Locate filters by their options, not position: FilterBar hides some filters per route.
-const warehouseFilter = (page) =>
-  page.locator('select.filter-select').filter({ has: page.locator('option[value="London"]') })
-const statusFilter = (page) =>
-  page.locator('select.filter-select').filter({ has: page.locator('option[value="delivered"]') })
+import { test, expect, warehouseFilter, statusFilter } from './fixtures.js'
 
 test.describe('Restocking', () => {
   test('plan a London restock, place it, and see it in the Orders tab', async ({ page }) => {

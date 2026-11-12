@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures.js'
 
 test('app home page loads with navigation', async ({ page }) => {
   await page.goto('/')
