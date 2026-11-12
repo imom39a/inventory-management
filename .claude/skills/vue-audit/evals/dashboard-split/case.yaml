@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: dashboard-split
+expected_outcome: |
+  A concrete split plan for client/src/views/Dashboard.vue naming child components and composables, each mapped to the section and line range it takes over, noting overlap with existing components like TasksModal. No source files changed.
