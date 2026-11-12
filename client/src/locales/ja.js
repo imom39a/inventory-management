@@ -7,6 +7,7 @@ export default {
     restocking: '補充発注',
     finance: '財務',
     demandForecast: '需要予測',
+    backlog: 'バックログ',
     reports: 'レポート',
     companyName: '触媒コンポーネンツ',
     subtitle: '在庫管理システム'
